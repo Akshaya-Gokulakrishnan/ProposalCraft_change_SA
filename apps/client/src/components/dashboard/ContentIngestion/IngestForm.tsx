@@ -7,8 +7,8 @@ import { useSources } from '../../../hooks/useSources';
 
 type IngestFormProps = {
   onContentUploaded: (results: any[]) => void;
-  onProcessingStart: () => void;
-  onProcessingEnd: () => void;
+  onProcessingStart: (type: 'file' | 'url') => void;
+  onProcessingEnd: (type: 'file' | 'url') => void;
   isProcessing: boolean;
   defaultType: 'file' | 'url';
 };
@@ -58,7 +58,9 @@ const IngestForm: React.FC<IngestFormProps> = ({
   // Listen for file selection events from parent component
   React.useEffect(() => {
     const handleFileSelected = (e: CustomEvent<{ files: FileList }>) => {
-      handleFileChange(e.detail.files);
+      if (e.detail?.files) {
+        handleFileChange(e.detail.files);
+      }
     };
 
     const formElement = document.getElementById('fileIngestForm');
@@ -74,7 +76,7 @@ const IngestForm: React.FC<IngestFormProps> = ({
     e.preventDefault();
 
     try {
-      onProcessingStart();
+      onProcessingStart(defaultType);
       let results: any[] = [];
 
       if (defaultType === 'file' && selectedFiles.length > 0) {
@@ -109,7 +111,7 @@ const IngestForm: React.FC<IngestFormProps> = ({
       console.error('Upload error:', error);
       toast.error('Failed to process content. Please try again.');
     } finally {
-      onProcessingEnd();
+      onProcessingEnd(defaultType);
     }
   };
 
@@ -129,13 +131,15 @@ const IngestForm: React.FC<IngestFormProps> = ({
               {selectedFiles.map((file, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 group"
                 >
-                  <span className="text-indigo-700 text-sm truncate flex-1 mr-2">{file.name}</span>
+                  <span className="text-indigo-700 text-sm truncate flex-1 mr-2 font-medium">
+                    {file.name}
+                  </span>
                   <button
                     onClick={() => removeFile(index)}
-                    disabled={isProcessing}
-                    className="text-indigo-400 hover:text-indigo-600 transition-colors p-1"
+                    disabled={isProcessing && defaultType === 'file'}
+                    className="text-indigo-400 hover:text-red-500 transition-all duration-200 p-1.5 hover:bg-red-50 rounded-full"
                   >
                     <BiTrash className="w-4 h-4" />
                   </button>
@@ -145,8 +149,18 @@ const IngestForm: React.FC<IngestFormProps> = ({
           )}
 
           {errors.file && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{errors.file}</p>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl shadow-sm">
+              <p className="text-red-600 text-sm font-medium flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {errors.file}
+              </p>
             </div>
           )}
         </div>
@@ -158,12 +172,22 @@ const IngestForm: React.FC<IngestFormProps> = ({
             placeholder="Enter URLs (one per line or comma separated)"
             value={webLinks}
             onChange={handleUrlChange}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all min-h-[120px]"
-            disabled={isProcessing}
+            className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all duration-200 min-h-[120px] bg-gradient-to-br from-white to-emerald-50/30 shadow-sm hover:shadow-md placeholder-emerald-400/50"
+            disabled={isProcessing && defaultType === 'url'}
           />
           {errors.url && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{errors.url}</p>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl shadow-sm">
+              <p className="text-red-600 text-sm font-medium flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {errors.url}
+              </p>
             </div>
           )}
         </div>
@@ -172,17 +196,23 @@ const IngestForm: React.FC<IngestFormProps> = ({
       {/* Submit button */}
       <button
         onClick={handleSubmit}
-        disabled={isProcessing || !canSubmit()}
-        className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 
+        disabled={
+          (isProcessing && defaultType === 'file') ||
+          (isProcessing && defaultType === 'url') ||
+          !canSubmit()
+        }
+        className={`w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]
           ${
-            isProcessing || !canSubmit()
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            (isProcessing && defaultType === 'file') ||
+            (isProcessing && defaultType === 'url') ||
+            !canSubmit()
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed hover:scale-100'
               : defaultType === 'file'
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-indigo-300'
-                : 'bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-200 hover:shadow-green-300'
+                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:from-indigo-700 hover:to-blue-700 shadow-lg shadow-indigo-200/50 hover:shadow-xl hover:shadow-indigo-300/50'
+                : 'bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 shadow-lg shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50'
           }`}
       >
-        {isProcessing ? (
+        {isProcessing && (defaultType === 'file' || defaultType === 'url') ? (
           <>
             <FiLoader className="w-5 h-5 animate-spin" />
             <span>Processing...</span>
